@@ -16,8 +16,7 @@ scaler = joblib.load("scaler.pkl")
 # ================== TITLE ==================
 st.title("🩺 Diabetes Prediction App")
 st.markdown(
-    "This app predicts **diabetes risk** using medical parameters.  
-    It uses a **machine learning model** trained on healthcare data."
+    "This app predicts **diabetes risk** using medical parameters using a machine learning model."
 )
 
 st.divider()
@@ -123,3 +122,4 @@ st.caption(
     "⚕️ **Disclaimer:** This app is for educational purposes only. "
     "It does NOT replace professional medical advice."
 )
+
