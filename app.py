@@ -1,72 +1,121 @@
 import streamlit as st
-import numpy as np
 import joblib
+import pandas as pd
 
-# -------------------------------
+# -----------------------------
+# Page Config
+# -----------------------------
+st.set_page_config(
+    page_title="Diabetes Risk Prediction",
+    page_icon="🩺",
+    layout="centered"
+)
+
+st.title("🩺 Diabetes Risk Prediction App")
+st.write(
+    "This app predicts **diabetes risk** using a machine learning model "
+    "trained in **Google Colab**."
+)
+
+# -----------------------------
 # Load model & scaler
-# -------------------------------
-model = joblib.load("diabetes_model.pkl")
-scaler = joblib.load("scaler.pkl")
+# -----------------------------
+@st.cache_resource
+def load_artifacts():
+    model = joblib.load("diabetes_model.pkl")
+    scaler = joblib.load("scaler.pkl")
+    return model, scaler
 
-FEATURES = list(scaler.feature_names_in_)  # EXACT COLAB FEATURES
+model, scaler = load_artifacts()
 
-st.set_page_config(page_title="Diabetes Risk Predictor", layout="centered")
-st.title("🩺 Diabetes Risk Prediction")
+# -----------------------------
+# Inputs
+# -----------------------------
+st.subheader("Enter Patient Details")
 
-st.markdown("This app uses the **same model and scaler trained in Google Colab**.")
-
-# -------------------------------
-# USER INPUTS (HUMAN)
-# -------------------------------
-age = st.number_input("Age", 1, 120, 30)
-bmi = st.number_input("BMI", 10.0, 70.0, 25.0)
-hba1c = st.number_input("HbA1c Level (%)", 3.0, 15.0, 5.5)
-glucose = st.number_input("Blood Glucose Level (mg/dL)", 50, 350, 120)
+age = st.number_input("Age", 1, 120, 35)
 
 hypertension = st.selectbox("Hypertension", ["No", "Yes"])
 heart_disease = st.selectbox("Heart Disease", ["No", "Yes"])
+
+bmi = st.number_input("BMI", 10.0, 70.0, 25.0)
+hba1c = st.number_input("HbA1c Level (%)", 3.0, 15.0, 5.5)
+glucose = st.number_input("Blood Glucose Level (mg/dL)", 50, 400, 120)
+
 gender = st.selectbox("Gender", ["Female", "Male"])
 smoking = st.selectbox("Smoking History", ["never", "former", "current"])
 
-# -------------------------------
-# ENCODING (MATCH COLAB)
-# -------------------------------
-row = {
-    "age": age,
-    "bmi": bmi,
-    "HbA1c_level": hba1c,
-    "blood_glucose_level": glucose,
-    "hypertension": 1 if hypertension == "Yes" else 0,
-    "heart_disease": 1 if heart_disease == "Yes" else 0,
-    "gender_Male": 1 if gender == "Male" else 0,
-    "smoking_history_current": 1 if smoking == "current" else 0,
-    "smoking_history_former": 1 if smoking == "former" else 0,
-    "smoking_history_never": 1 if smoking == "never" else 0,
-}
+# -----------------------------
+# Encoding (MATCHING COLAB)
+# -----------------------------
+hypertension = 1 if hypertension == "Yes" else 0
+heart_disease = 1 if heart_disease == "Yes" else 0
+gender_Male = 1 if gender == "Male" else 0
 
-# -------------------------------
-# BUILD INPUT IN EXACT ORDER
-# -------------------------------
-input_data = np.array([[row[col] for col in FEATURES]])
+smoking_history_former = 1 if smoking == "former" else 0
+smoking_history_never = 1 if smoking == "never" else 0
+# current → both 0
 
-# -------------------------------
-# DEBUG (OPTIONAL – KEEP FOR NOW)
-# -------------------------------
-st.write("Feature order:", FEATURES)
-st.write("Input shape:", input_data.shape)
+# -----------------------------
+# Feature Order (VERY IMPORTANT)
+# -----------------------------
+FEATURE_COLUMNS = [
+    "age",
+    "hypertension",
+    "heart_disease",
+    "bmi",
+    "HbA1c_level",
+    "blood_glucose_level",
+    "gender_Male",
+    "smoking_history_former",
+    "smoking_history_never"
+]
 
-# -------------------------------
-# PREDICTION
-# -------------------------------
+input_data = pd.DataFrame(
+    [[
+        age,
+        hypertension,
+        heart_disease,
+        bmi,
+        hba1c,
+        glucose,
+        gender_Male,
+        smoking_history_former,
+        smoking_history_never
+    ]],
+    columns=FEATURE_COLUMNS
+)
+
+# -----------------------------
+# DEBUG SECTION (WHAT YOU ASKED)
+# -----------------------------
+with st.expander("🔎 Model Input Debug Info"):
+    st.write("**Feature Order Used:**")
+    st.json(FEATURE_COLUMNS)
+
+    st.write("**Input DataFrame:**")
+    st.dataframe(input_data)
+
+    st.write("**Input Shape:**", input_data.shape)
+
+# -----------------------------
+# Prediction
+# -----------------------------
+st.markdown("---")
+
 if st.button("🔍 Predict Diabetes Risk"):
     input_scaled = scaler.transform(input_data)
-    probability = model.predict_proba(input_scaled)[0][1]
-    prediction = model.predict(input_scaled)[0]
+    probability = model.predict_proba(input_scaled)[0][1] * 100
 
-    if prediction == 1:
-        st.error(f"⚠️ High Risk of Diabetes\n\nProbability: {probability*100:.2f}%")
+    if probability >= 50:
+        st.error("⚠️ **High Risk of Diabetes**")
     else:
-        st.success(f"✅ Low Risk of Diabetes\n\nProbability: {probability*100:.2f}%")
+        st.success("✅ **Low Risk of Diabetes**")
 
+    st.metric("Diabetes Probability", f"{probability:.2f}%")
+
+# -----------------------------
+# Footer
+# -----------------------------
 st.markdown("---")
 st.caption("Model trained in Google Colab • Deployed using Streamlit")
