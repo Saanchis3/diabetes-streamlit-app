@@ -1,94 +1,76 @@
 import streamlit as st
-import joblib
 import numpy as np
-import pandas as pd
+import joblib
 
-# -------------------------------
+# ------------------------------
 # Load model and scaler
-# -------------------------------
+# ------------------------------
 model = joblib.load("diabetes_model.pkl")
 scaler = joblib.load("scaler.pkl")
 
-# -------------------------------
-# App UI
-# -------------------------------
-st.set_page_config(page_title="Diabetes Prediction App", layout="centered")
+st.set_page_config(page_title="Diabetes Prediction", layout="centered")
 
 st.title("🩺 Diabetes Prediction App")
-st.write(
-    "This app predicts **diabetes risk** using medical parameters. "
-    "Please enter the details carefully."
+st.markdown("""
+This app predicts **diabetes risk** using the **same machine learning model trained in Google Colab**.
+""")
+
+# ------------------------------
+# USER INPUTS (HUMAN FRIENDLY)
+# ------------------------------
+age = st.number_input("Age", 1, 120, 30)
+bmi = st.number_input("BMI", 10.0, 70.0, 25.0)
+hba1c = st.number_input("HbA1c Level (%)", 3.0, 15.0, 5.5)
+glucose = st.number_input("Blood Glucose Level (mg/dL)", 50, 350, 120)
+
+hypertension = st.selectbox("Hypertension", ["No", "Yes"])
+heart_disease = st.selectbox("Heart Disease", ["No", "Yes"])
+
+gender = st.selectbox("Gender", ["Female", "Male"])
+smoking = st.selectbox(
+    "Smoking History",
+    ["never", "former", "current"]
 )
 
-st.divider()
+# ------------------------------
+# ENCODING (MATCH COLAB)
+# ------------------------------
+hypertension = 1 if hypertension == "Yes" else 0
+heart_disease = 1 if heart_disease == "Yes" else 0
+gender_male = 1 if gender == "Male" else 0
 
-# -------------------------------
-# Get feature names from scaler
-# -------------------------------
-feature_names = list(scaler.feature_names_in_)
+smoking_current = 1 if smoking == "current" else 0
+smoking_former = 1 if smoking == "former" else 0
+smoking_never = 1 if smoking == "never" else 0
 
-st.subheader("📥 Input Medical Details")
+# ------------------------------
+# FINAL FEATURE VECTOR (ORDER MATTERS)
+# ------------------------------
+input_data = np.array([[
+    age,
+    bmi,
+    hba1c,
+    glucose,
+    hypertension,
+    heart_disease,
+    gender_male,
+    smoking_current,
+    smoking_former,
+    smoking_never
+]])
 
-input_values = []
-
-for feature in feature_names:
-    feature_lower = feature.lower()
-
-    if feature_lower in ["age"]:
-        val = st.number_input("Age (years)", min_value=1, max_value=120, value=30)
-
-    elif feature_lower in ["bmi"]:
-        val = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0)
-
-    elif feature_lower in ["hba1c_level"]:
-        val = st.number_input("HbA1c Level (%)", min_value=3.0, max_value=15.0, value=5.5)
-
-    elif feature_lower in ["blood_glucose_level"]:
-        val = st.number_input(
-            "Blood Glucose Level (mg/dL)", min_value=50, max_value=300, value=120
-        )
-
-    elif feature_lower in ["hypertension"]:
-        val = st.selectbox("Hypertension", [0, 1], format_func=lambda x: "Yes" if x == 1 else "No")
-
-    elif feature_lower in ["heart_disease"]:
-        val = st.selectbox("Heart Disease", [0, 1], format_func=lambda x: "Yes" if x == 1 else "No")
-
-    elif feature_lower in ["gender"]:
-        gender = st.selectbox("Gender", ["Female", "Male"])
-        val = 1 if gender == "Male" else 0
-
-    else:
-        # fallback (just in case)
-        val = st.number_input(feature, value=0.0)
-
-    input_values.append(val)
-
-# -------------------------------
-# Prediction
-# -------------------------------
-st.divider()
-
+# ------------------------------
+# PREDICTION
+# ------------------------------
 if st.button("🔍 Predict Diabetes Risk"):
-    try:
-        input_array = np.array(input_values).reshape(1, -1)
-        input_df = pd.DataFrame(input_array, columns=feature_names)
+    input_scaled = scaler.transform(input_data)
+    prob = model.predict_proba(input_scaled)[0][1]
+    prediction = model.predict(input_scaled)[0]
 
-        input_scaled = scaler.transform(input_df)
-        prediction = model.predict(input_scaled)[0]
-        probability = model.predict_proba(input_scaled)[0][1]
+    if prediction == 1:
+        st.error(f"⚠️ High Risk of Diabetes\n\nProbability: {prob*100:.2f}%")
+    else:
+        st.success(f"✅ Low Risk of Diabetes\n\nProbability: {prob*100:.2f}%")
 
-        if prediction == 1:
-            st.error(f"⚠️ High Risk of Diabetes\n\nProbability: **{probability:.2%}**")
-        else:
-            st.success(f"✅ Low Risk of Diabetes\n\nProbability: **{probability:.2%}**")
-
-    except Exception as e:
-        st.error("Something went wrong during prediction.")
-        st.exception(e)
-
-# -------------------------------
-# Footer
-# -------------------------------
-st.divider()
-st.caption("Model trained in Google Colab • Deployed using Streamlit Cloud")
+st.markdown("---")
+st.caption("Model trained in Google Colab • Deployed using Streamlit")
