@@ -3,14 +3,24 @@ import numpy as np
 import pandas as pd
 import joblib
 
-# -------------------- PAGE CONFIG --------------------
-st.set_page_config(page_title="Diabetes Risk Prediction", layout="centered")
+# ----------------------------------
+# Page config
+# ----------------------------------
+st.set_page_config(
+    page_title="Diabetes Risk Prediction",
+    page_icon="🩺",
+    layout="centered"
+)
 
-# -------------------- LOAD MODEL --------------------
+# ----------------------------------
+# Load model & scaler
+# ----------------------------------
 model = joblib.load("diabetes_model.pkl")
 scaler = joblib.load("scaler.pkl")
 
-# EXACT feature order from your Colab
+# ----------------------------------
+# Feature order (MUST MATCH COLAB)
+# ----------------------------------
 FEATURE_NAMES = [
     "age",
     "hypertension",
@@ -23,108 +33,144 @@ FEATURE_NAMES = [
     "smoking_history_never"
 ]
 
-# -------------------- TITLE --------------------
+# ----------------------------------
+# Feature explanations (DISPLAY ONLY)
+# ----------------------------------
+FEATURE_EXPLANATIONS = {
+    "age": "Increasing age raises diabetes risk",
+    "hypertension": "High blood pressure is linked with diabetes",
+    "heart_disease": "Heart disease often coexists with diabetes",
+    "bmi": "Higher BMI increases insulin resistance",
+    "HbA1c_level": "HbA1c reflects long-term blood sugar control",
+    "blood_glucose_level": "Higher glucose indicates poor regulation",
+    "gender_Male": {
+        0: "Female gender (lower risk in this model)",
+        1: "Male gender (higher risk in this model)"
+    },
+    "smoking_history_former": {
+        1: "Former smoker (moderate risk factor)",
+        0: "Not a former smoker"
+    },
+    "smoking_history_never": {
+        1: "Never smoked (protective factor)",
+        0: "Has smoking history"
+    }
+}
+
+# ----------------------------------
+# App title
+# ----------------------------------
 st.title("🩺 Diabetes Risk Prediction App")
-st.write("This app predicts **diabetes risk** using medical parameters.")
+st.write("This app predicts **diabetes risk** using a machine learning model trained in Google Colab.")
 
-st.divider()
-
-# -------------------- INPUTS --------------------
-age = st.number_input("Age (years)", 1, 120, 30)
+# ----------------------------------
+# User inputs
+# ----------------------------------
+age = st.number_input("Age", min_value=1, max_value=120, value=30)
 hypertension = st.selectbox("Hypertension", ["No", "Yes"])
 heart_disease = st.selectbox("Heart Disease", ["No", "Yes"])
-
-bmi = st.number_input("BMI", 10.0, 70.0, 22.0)
-hba1c = st.number_input("HbA1c Level (%)", 3.0, 15.0, 5.5)
-glucose = st.number_input("Blood Glucose Level (mg/dL)", 50, 400, 120)
+bmi = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0)
+HbA1c = st.number_input("HbA1c Level (%)", min_value=3.0, max_value=15.0, value=5.5)
+blood_glucose = st.number_input("Blood Glucose Level (mg/dL)", min_value=50, max_value=400, value=120)
 
 gender = st.selectbox("Gender", ["Female", "Male"])
 smoking = st.selectbox("Smoking History", ["Never", "Former", "Current"])
 
-# -------------------- ENCODING (MATCH COLAB) --------------------
-gender_male = 1 if gender == "Male" else 0
-smoking_former = 1 if smoking == "Former" else 0
-smoking_never = 1 if smoking == "Never" else 0
+# ----------------------------------
+# Encode categorical values (MATCH COLAB)
+# ----------------------------------
+hypertension = 1 if hypertension == "Yes" else 0
+heart_disease = 1 if heart_disease == "Yes" else 0
 
-# -------------------- INPUT VALIDATION --------------------
-warnings = []
+gender_Male = 1 if gender == "Male" else 0
+smoking_history_former = 1 if smoking == "Former" else 0
+smoking_history_never = 1 if smoking == "Never" else 0
 
-if bmi < 18.5 or bmi > 35:
-    warnings.append("⚠️ BMI is outside the healthy range (18.5–24.9).")
+# ----------------------------------
+# Input validation warnings (NON-BLOCKING)
+# ----------------------------------
+st.subheader("⚠️ Input Check")
 
-if hba1c >= 5.7:
-    warnings.append("⚠️ HbA1c ≥ 5.7% indicates prediabetes/diabetes risk.")
+if bmi > 40:
+    st.warning("Very high BMI increases diabetes risk significantly.")
 
-if glucose >= 140:
-    warnings.append("⚠️ Blood glucose ≥ 140 mg/dL is considered high.")
+if HbA1c >= 6.5:
+    st.warning("HbA1c ≥ 6.5% is typically diagnostic of diabetes.")
 
-if warnings:
-    for w in warnings:
-        st.warning(w)
+if blood_glucose >= 200:
+    st.warning("Blood glucose ≥ 200 mg/dL indicates high risk.")
 
-# -------------------- INPUT DATAFRAME --------------------
-input_data = pd.DataFrame([[
+# ----------------------------------
+# Prepare input data (STRICT ORDER)
+# ----------------------------------
+input_data = np.array([[
     age,
-    1 if hypertension == "Yes" else 0,
-    1 if heart_disease == "Yes" else 0,
+    hypertension,
+    heart_disease,
     bmi,
-    hba1c,
-    glucose,
-    gender_male,
-    smoking_former,
-    smoking_never
-]], columns=FEATURE_NAMES)
+    HbA1c,
+    blood_glucose,
+    gender_Male,
+    smoking_history_former,
+    smoking_history_never
+]])
 
-# -------------------- PREDICTION --------------------
+input_df = pd.DataFrame(input_data, columns=FEATURE_NAMES)
+
+# ----------------------------------
+# Predict
+# ----------------------------------
 if st.button("🔍 Predict Diabetes Risk"):
-    input_scaled = scaler.transform(input_data)
+
+    input_scaled = scaler.transform(input_df)
+    prediction = model.predict(input_scaled)[0]
     probability = model.predict_proba(input_scaled)[0][1]
 
-    # -------------------- RESULT --------------------
-    if probability >= 0.5:
-        st.error(f"🚨 **High Risk of Diabetes**\n\nProbability: **{probability*100:.2f}%**")
+    if prediction == 1:
+        st.error(f"⚠️ **High Risk of Diabetes**\n\nProbability: **{probability*100:.2f}%**")
     else:
         st.success(f"✅ **Low Risk of Diabetes**\n\nProbability: **{probability*100:.2f}%**")
 
-    st.divider()
-
-    # -------------------- MEDICAL INTERPRETATION --------------------
-    st.subheader("🧠 Medical Interpretation")
-
-    if bmi >= 30:
-        st.write("• **BMI** indicates obesity, a strong diabetes risk factor.")
-    elif bmi >= 25:
-        st.write("• **BMI** indicates overweight, increasing insulin resistance.")
-    else:
-        st.write("• **BMI** is in the healthy range.")
-
-    if hba1c >= 6.5:
-        st.write("• **HbA1c ≥ 6.5%** is diagnostic of diabetes.")
-    elif hba1c >= 5.7:
-        st.write("• **HbA1c** suggests prediabetes.")
-    else:
-        st.write("• **HbA1c** is normal.")
-
-    if glucose >= 200:
-        st.write("• **Blood glucose ≥ 200 mg/dL** is diabetic range.")
-    elif glucose >= 140:
-        st.write("• **Blood glucose** is elevated.")
-    else:
-        st.write("• **Blood glucose** is normal.")
-
-    # -------------------- FEATURE IMPORTANCE (EXPLANATION) --------------------
+    # ----------------------------------
+    # Feature importance explanation
+    # ----------------------------------
     st.divider()
     st.subheader("📊 Why this prediction?")
 
-    importance_df = pd.DataFrame({
+    coefs = model.coef_[0]
+    impacts = np.abs(coefs * input_scaled[0])
+
+    explanation_df = pd.DataFrame({
         "Feature": FEATURE_NAMES,
-        "Impact": np.abs(input_scaled[0])
-    }).sort_values(by="Impact", ascending=False)
+        "Impact": impacts
+    }).sort_values(by="Impact", ascending=False).head(5)
 
-    st.write("Top contributing factors for this prediction:")
-    st.dataframe(importance_df.head(5), use_container_width=True)
+    st.dataframe(explanation_df, use_container_width=True)
 
-    st.caption("Higher impact values indicate stronger influence on prediction.")
+    for _, row in explanation_df.iterrows():
+        feature = row["Feature"]
+        if feature in FEATURE_EXPLANATIONS:
+            exp = FEATURE_EXPLANATIONS[feature]
+            if isinstance(exp, dict):
+                value = int(input_df[feature].iloc[0])
+                st.write(f"• **{exp[value]}**")
+            else:
+                st.write(f"• **{exp}**")
 
+# ----------------------------------
+# Medical interpretation
+# ----------------------------------
 st.divider()
+st.subheader("🩺 Medical Interpretation")
+
+st.markdown("""
+- **BMI**: High BMI is linked to insulin resistance.
+- **HbA1c**: Measures average blood sugar over the past 2–3 months.
+- **Blood Glucose**: Reflects current blood sugar levels.
+- **Smoking**: Increases metabolic and cardiovascular risk.
+- **Hypertension & Heart Disease**: Common diabetes comorbidities.
+
+⚠️ *This tool is for educational purposes only and not a medical diagnosis.*
+""")
+
 st.caption("Model trained in Google Colab • Deployed using Streamlit")
