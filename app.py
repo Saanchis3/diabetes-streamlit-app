@@ -156,6 +156,48 @@ if st.button("🔍 Predict Diabetes Risk"):
                 st.write(f"• **{exp[value]}**")
             else:
                 st.write(f"• **{exp}**")
+# ======================================================
+    # FUTURE METABOLIC / DIABETES RISK (RULE-BASED)
+    # ======================================================
+    st.divider()
+    st.subheader("🧭 Future Metabolic / Diabetes Risk")
+
+    future_risk_score = 0
+    future_risk_reasons = []
+
+    if bmi >= 30:
+        future_risk_score += 2
+        future_risk_reasons.append("Obesity (High BMI)")
+    elif bmi >= 25:
+        future_risk_score += 1
+        future_risk_reasons.append("Overweight BMI")
+
+    if hypertension == 1:
+        future_risk_score += 2
+        future_risk_reasons.append("Hypertension")
+
+    if heart_disease == 1:
+        future_risk_score += 2
+        future_risk_reasons.append("Cardiovascular disease")
+
+    if smoking_history_former == 1:
+        future_risk_score += 1
+        future_risk_reasons.append("Former smoking history")
+
+    if future_risk_score >= 5:
+        st.warning("🟠 **Future Metabolic Risk: HIGH**")
+    elif future_risk_score >= 3:
+        st.info("🟡 **Future Metabolic Risk: MODERATE**")
+    else:
+        st.success("🟢 **Future Metabolic Risk: LOW**")
+
+    st.markdown(f"""
+**Why this matters:**  
+Even if current diabetes risk is low, the following factors increase the
+likelihood of developing diabetes in the future:
+
+- {", ".join(future_risk_reasons) if future_risk_reasons else "No major metabolic risk factors detected"}
+""")
 
 # ----------------------------------
 # Medical interpretation
@@ -174,3 +216,4 @@ st.markdown("""
 """)
 
 st.caption("Model trained in Google Colab • Deployed using Streamlit")
+
