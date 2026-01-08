@@ -135,7 +135,7 @@ if st.button("🔍 Predict Diabetes Risk"):
     # Feature importance explanation
     # ----------------------------------
     st.divider()
-    st.subheader("📊 Why this prediction?")
+    st.subheader(" Why this prediction?")
 
     coefs = model.coef_[0]
     impacts = np.abs(coefs * input_scaled[0])
@@ -216,4 +216,5 @@ st.markdown("""
 """)
 
 st.caption("Model trained in Google Colab • Deployed using Streamlit")
+
 
